@@ -7,7 +7,8 @@ class AdultDataset:
         self.columns = ['age', 'workclass', 'fnlwgt', 'education', 'education-num', 'marital-status', 
                         'occupation', 'relationship', 'race', 'sex', 'capital-gain', 'capital-loss', 
                         'hours-per-week', 'native-country', 'income']
-        self.cat_features = ['workclass', 'education', 'marital-status', 'occupation', 'relationship', 'race', 'sex', 'native-country']
+        self.cat_features = ['workclass', 'education', 'marital-status', 'occupation', 'relationship', 
+                             'race', 'sex', 'native-country']
         self.num_features = ['age', 'fnlwgt', 'education-num', 'capital-gain', 'capital-loss', 'hours-per-week']
 
     def load_data(self, filepath='/Users/davembiazi/Desktop/Projects/Model Correction/datasets/adult/adult.data'):
@@ -38,3 +39,13 @@ class AdultDataset:
         X_new, y_new = X[new_indices], y[new_indices]
         
         return X_old, y_old, X_new, y_new
+    
+# Usage example
+dataset = AdultDataset()
+X, y, feature_names, raw_data = dataset.load_data()
+X_old, y_old, X_new, y_new = dataset.split_old_new_data(X, y)
+
+print(f"Total samples: {len(X)}")
+print(f"Number of features: {X.shape[1]}")
+print(f"Old data samples: {len(X_old)}, Positive samples: {y_old.sum()}")
+print(f"New data samples: {len(X_new)}, Positive samples: {y_new.sum()}")
