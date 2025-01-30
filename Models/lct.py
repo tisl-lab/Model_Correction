@@ -7,10 +7,14 @@ import heapq
 # LocalCorrectionTree Implementation
 ###############################################################################
 class LocalCorrectionTree:
-    def __init__(self, lambda_reg=0.1, max_depth=5, min_samples_leaf=64):
+    def __init__(self, lambda_reg=0.1, max_depth=5, min_samples_leaf=64, nprune=1, epsilon_min=0.01, epsilon_max=0.5, epsilon_fail=0.499):
         self.lambda_reg = lambda_reg
         self.max_depth = max_depth
         self.min_samples_leaf = min_samples_leaf
+        self.nprune = nprune
+        self.n_min = epsilon_min
+        self.n_max = epsilon_max
+        self.n_fail = epsilon_fail
         self.n_classes = None
         self.nodes = []
         self.children = []
@@ -136,7 +140,7 @@ class LocalCorrectionTree:
 
         return best_split
 
-    def prune(self, X, y, old_scores, nprune=1, epsilon_min=0.01, epsilon_max=0.5, epsilon_fail=0.499):
+    def prune(self, X, y, old_scores):
         leaf_indices = [[] for _ in range(len(self.nodes))]
         for i in range(len(X)):
             node_id = 0
@@ -152,7 +156,7 @@ class LocalCorrectionTree:
                     node_id = right_id
 
         for node_id, idx_list in enumerate(leaf_indices):
-            if len(idx_list) < nprune:
+            if len(idx_list) < self.nprune:
                 continue
 
             idx_array = np.array(idx_list)
@@ -164,9 +168,9 @@ class LocalCorrectionTree:
             incorrect = np.sum((new_preds != y[idx_array]) & (old_preds != new_preds))
             ratio_changed = changed / len(idx_list) if len(idx_list) > 0 else 0
 
-            if ratio_changed < epsilon_min or ratio_changed > epsilon_max:
+            if ratio_changed < self.n_min or ratio_changed > self.n_max:
                 self._zero_leaf(node_id)
-            elif changed > 0 and (incorrect / changed) > epsilon_fail:
+            elif changed > 0 and (incorrect / changed) > self.n_fail:
                 self._zero_leaf(node_id)
 
     def _zero_leaf(self, node_id):
@@ -287,6 +291,7 @@ from sklearn.linear_model import LogisticRegression
 X, y = make_classification(n_samples=1000, n_features=20, n_classes=2, random_state=42)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
+print(f"Y train is : {y_train} and Y test is : {y_test}")
 # Train a simple logistic regression model as the "old model"
 old_model = LogisticRegression(random_state=42)
 old_model.fit(X_train, y_train)
