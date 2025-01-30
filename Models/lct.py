@@ -240,13 +240,11 @@ def objective(trial):
     # Sample random lambda
     lambda_reg = trial.suggest_float("lambda_reg", 0.05, 0.5, log=False)
 
-    # Generate random data just for demonstration
     np.random.seed(42)
     X = np.random.rand(50, 5)
     y = np.random.randint(0, 3, size=50)
     old_scores = np.random.randn(50, 3)
 
-    # Instantiate an LCT with the sampled lambda_reg
     lct_temp = LocalCorrectionTree(
         lambda_reg=lambda_reg,
         max_depth=3,
@@ -284,8 +282,6 @@ import numpy as np
 from sklearn.datasets import make_classification
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
-
-# Assuming the LocalCorrectionTree class is already defined
 
 # Generate a synthetic dataset
 X, y = make_classification(n_samples=1000, n_features=20, n_classes=2, random_state=42)
