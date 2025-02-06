@@ -4,7 +4,7 @@ from scipy.optimize import minimize
 import heapq
 
 ###############################################################################
-# LocalCorrectionTree Implementation with Pruning Strategies
+# LocalCorrectionTree Implementation
 ###############################################################################
 class LocalCorrectionTree:
     def __init__(self, lambda_reg=0.1, max_depth=5, min_samples_leaf=64, nprune=1,
@@ -99,7 +99,6 @@ class LocalCorrectionTree:
         sub_scores = old_scores[indices] + w
         sub_labels = y[indices]
         probs = softmax(sub_scores, axis=1)
-        # Adding a small constant to avoid log(0)
         log_likelihood = -np.sum(np.log(probs[np.arange(len(indices)), sub_labels] + 1e-10))
         reg_term = self.lambda_reg * len(indices) * np.linalg.norm(w)
         return log_likelihood + reg_term
@@ -120,7 +119,7 @@ class LocalCorrectionTree:
             unique_vals = np.unique(x_vals)
             if len(unique_vals) <= 1:
                 continue
-            # Use each unique value as a candidate threshold
+
             for t in unique_vals:
                 left_indices = indices[x_vals < t]
                 right_indices = indices[x_vals >= t]
@@ -151,6 +150,7 @@ class LocalCorrectionTree:
                     node_id = left_id
                 else:
                     node_id = right_id
+                    
         # For each leaf, apply the pruning rules
         for node_id, idx_list in enumerate(leaf_indices):
             if len(idx_list) < self.nprune:
@@ -177,7 +177,6 @@ class LocalCorrectionTree:
                 self._zero_leaf(node_id)
 
     def _zero_leaf(self, node_id):
-        # Zero-out the weight vector and mark this node as a leaf.
         feature_idx, _, w_node = self.nodes[node_id]
         self.nodes[node_id] = (-1, None, np.zeros_like(w_node))
 
