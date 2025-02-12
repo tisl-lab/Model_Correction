@@ -7,8 +7,8 @@ import heapq
 # LocalCorrectionTree Implementation
 ###############################################################################
 class LocalCorrectionTree:
-    def __init__(self, lambda_reg=0.1, max_depth=5, min_samples_leaf=64, nprune=1,
-                 epsilon_min=0.01, epsilon_max=0.5, epsilon_fail=0.499):
+    def __init__(self, lambda_reg, max_depth, min_samples_leaf, nprune,
+                 epsilon_min, epsilon_max, epsilon_fail):
         self.lambda_reg = lambda_reg
         self.max_depth = max_depth
         self.min_samples_leaf = min_samples_leaf
@@ -84,14 +84,14 @@ class LocalCorrectionTree:
             node_id = 0
             while True:
                 feature_idx, threshold, w_node = self.nodes[node_id]
-                left_id, right_id = self.children[node_id]
+                #left_id, right_id = self.children[node_id]
                 if feature_idx == -1:
                     corrections[i] = w_node
                     break
                 if X[i, feature_idx] < threshold:
-                    node_id = left_id
+                    node_id = self.children[node_id][0] #left_id
                 else:
-                    node_id = right_id
+                    node_id = self.children[node_id][1] #right_id
         return corrections
 
     def _objective_function(self, w, indices, old_scores, y):
@@ -99,7 +99,7 @@ class LocalCorrectionTree:
         sub_scores = old_scores[indices] + w
         sub_labels = y[indices]
         probs = softmax(sub_scores, axis=1)
-        log_likelihood = -np.sum(np.log(probs[np.arange(len(indices)), sub_labels] + 1e-10))
+        log_likelihood = -np.sum(np.log(probs[np.arange(len(indices)), sub_labels]))
         reg_term = self.lambda_reg * len(indices) * np.linalg.norm(w)
         return log_likelihood + reg_term
 
@@ -112,8 +112,13 @@ class LocalCorrectionTree:
         return res.x.reshape(1, self.n_classes)
 
     def _find_best_split(self, X, old_scores, y, indices):
+        """
+        Implementation of Algorithm 2: Split(v)
+        Finds the best split for a node by minimizing the sum of objective values
+        """
         best_obj = np.inf
         best_split = None
+        
         for j in range(X.shape[1]):
             x_vals = X[indices, j]
             unique_vals = np.unique(x_vals)
@@ -167,7 +172,7 @@ class LocalCorrectionTree:
             changed = np.sum(old_preds != new_preds)
             # ^Ici(v): among the changed predictions count those that lead to an incorrect label.
             incorrect = np.sum((new_preds != y[idx_array]) & (old_preds != new_preds))
-            ratio_changed = changed / num_samples
+            ratio_changed = changed / num_samples if num_samples > 0 else 0
 
             # Prune if the fraction of changed predictions is too small or too high,
             # or if too many of the changed samples have an incorrect prediction.
@@ -175,6 +180,9 @@ class LocalCorrectionTree:
                 self._zero_leaf(node_id)
             elif changed > 0 and (incorrect / changed) > self.epsilon_fail:
                 self._zero_leaf(node_id)
+                
+        # Simplify redundant nodes
+        self.simplify()
 
     def _zero_leaf(self, node_id):
         feature_idx, _, w_node = self.nodes[node_id]
@@ -183,7 +191,7 @@ class LocalCorrectionTree:
     def simplify(self):
         # Second pruning strategy: remove redundant nodes whose children are both pruned.
         def simplify_node(node_id):
-            feature_idx, threshold, w_node = self.nodes[node_id]
+            feature_idx, _, w_node = self.nodes[node_id]
             left_id, right_id = self.children[node_id]
             if feature_idx == -1:
                 return
@@ -198,6 +206,35 @@ class LocalCorrectionTree:
                 self.children[node_id] = (-1, -1)
         simplify_node(0)
 
+
+    def print_tree(self, node_id=0, indent="", feature_names=None, file_handle=None):
+        """Recursively prints tree structure with thresholds and corrections"""
+        if node_id >= len(self.nodes):
+            return
+
+        feature_idx, threshold, w_node = self.nodes[node_id]
+        left_id, right_id = self.children[node_id]
+
+        line = f"{indent}Node {node_id}: "
+        if feature_idx == -1:  # Leaf node
+            line += f"Correction {np.round(w_node[0], 3)}"
+        else:  # Internal node
+            feature = (feature_names[feature_idx] 
+                    if feature_names else f"Feature {feature_idx}")
+            line += f"{feature} <= {threshold:.3f}"
+        
+        # Write to file if provided, else print to console
+        if file_handle:
+            file_handle.write(line + "\n")
+        else:
+            print(line)
+
+        # Recursively process children if not leaf
+        if feature_idx != -1:
+            self.print_tree(left_id, indent+"  ", feature_names, file_handle)
+            self.print_tree(right_id, indent+"  ", feature_names, file_handle)
+        
+'''
     def print_tree(self, node_id=0, indent="", feature_names=None):
         feature_idx, threshold, w_node = self.nodes[node_id]
         
@@ -210,10 +247,11 @@ class LocalCorrectionTree:
                 feature = feature_names[feature_idx]
             else:
                 feature = "feature_" + str(feature_idx)
-            print(indent + "Node: Feature " + feature + " <= " + "{:.4f}".format(threshold))
+            print(indent + "Node: Feature " + feature + " <= " + "{:.2f}".format(threshold))
             
             left_id, right_id = self.children[node_id]
             if left_id != -1:
                 self.print_tree(left_id, indent + "  ", feature_names)
             if right_id != -1:
                 self.print_tree(right_id, indent + "  ", feature_names)
+        '''
